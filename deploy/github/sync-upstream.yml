@@ -1,46 +1,71 @@
-name: Sync Latest Version
+name: Check Upstream Updates
 
 on:
   schedule:
-    # GitHub Actions 使用 UTC；台灣時間每天 04:15 執行。
+    # GitHub Actions uses UTC; runs daily at 04:15 Taiwan time.
     - cron: "15 20 * * *"
   workflow_dispatch:
 
+# This workflow is intentionally read-only. Upstream changes must be reviewed
+# and merged through the integration branch before they can reach main.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: sync-upstream
-  cancel-in-progress: false
+  group: check-upstream
+  cancel-in-progress: true
 
 jobs:
-  sync:
-    # 官方 repository 不需要同步自己；Deploy to Cloudflare 建立的副本才會執行。
-    if: github.repository != 'TedLin1993/taiwan-fin-hub' && github.repository != 'TedLin1993/all-set-tw'
+  check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout deployed repository
+      - name: Checkout integration branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: integration
           fetch-depth: 0
 
-      - name: Sync upstream main safely
+      - name: Compare integration with upstream
         shell: bash
         run: |
           set -euo pipefail
 
-          git config user.name "taiwan-fin-hub-updater"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/TedLin1993/all-set-tw.git
+          git fetch --no-tags upstream main
 
-          updater="scripts/sync-upstream.mjs"
-          if [ ! -f "$updater" ]; then
-            # 舊版 Cloudflare 部署 repo 尚未包含 updater script；只下載至 runner 暫存目錄。
-            updater="$RUNNER_TEMP/sync-upstream.mjs"
-            curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
-              "https://raw.githubusercontent.com/TedLin1993/all-set-tw/main/scripts/sync-upstream.mjs" \
-              --output "$updater"
+          local_sha="$(git rev-parse HEAD)"
+          upstream_sha="$(git rev-parse upstream/main)"
+          read -r ahead behind <<< "$(git rev-list --left-right --count HEAD...upstream/main)"
+
+          {
+            echo "## Upstream review"
+            echo
+            echo "- Local branch: `integration`"
+            echo "- Local commit: `$local_sha`"
+            echo "- Upstream commit: `$upstream_sha`"
+            echo "- Local-only commits: `$ahead`"
+            echo "- Upstream-only commits: `$behind`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$behind" -eq 0 ]; then
+            echo "No upstream updates are waiting for review." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
-          node "$updater"
+          {
+            echo "### Upstream commits waiting for review"
+            echo
+            echo '~~~text'
+            git log --oneline --no-decorate HEAD..upstream/main | head -n 50
+            echo '~~~'
+            echo
+            echo "### Diff summary"
+            echo
+            echo '~~~text'
+            git diff --stat HEAD...upstream/main | head -n 100
+            echo '~~~'
+            echo
+            echo "No files were changed by this workflow. Review upstream changes manually before merging them into `integration`."
+          } >> "$GITHUB_STEP_SUMMARY"
