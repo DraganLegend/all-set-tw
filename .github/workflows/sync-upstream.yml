@@ -25,6 +25,7 @@ jobs:
         with:
           ref: integration
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Compare integration with upstream
         shell: bash
@@ -41,11 +42,11 @@ jobs:
           {
             echo "## Upstream review"
             echo
-            echo "- Local branch: `integration`"
-            echo "- Local commit: `$local_sha`"
-            echo "- Upstream commit: `$upstream_sha`"
-            echo "- Local-only commits: `$ahead`"
-            echo "- Upstream-only commits: `$behind`"
+            echo '- Local branch: `integration`'
+            printf -- '- Local commit: `%s`\n' "$local_sha"
+            printf -- '- Upstream commit: `%s`\n' "$upstream_sha"
+            printf -- '- Local-only commits: `%s`\n' "$ahead"
+            printf -- '- Upstream-only commits: `%s`\n' "$behind"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -58,14 +59,14 @@ jobs:
             echo "### Upstream commits waiting for review"
             echo
             echo '~~~text'
-            git log --oneline --no-decorate HEAD..upstream/main | head -n 50
+            git log -n 50 --oneline --no-decorate HEAD..upstream/main
             echo '~~~'
             echo
             echo "### Diff summary"
             echo
             echo '~~~text'
-            git diff --stat HEAD...upstream/main | head -n 100
+            git diff --stat HEAD...upstream/main | sed -n '1,100p'
             echo '~~~'
             echo
-            echo "No files were changed by this workflow. Review upstream changes manually before merging them into `integration`."
+            echo 'No files were changed by this workflow. Review upstream changes manually before merging them into `integration`.'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -70,51 +70,17 @@ Cloudflare Access 預設可能使用 Email OTP。如要限定 Cloudflare 帳號�
 2. **Access controls → Access settings** 的 **Global session duration** 為 **1 month**。
 3. Access Policy 若另有 Session Duration，也設為一個月。
 
-## 自動更新
+## 上游更新檢查與合併治理
 
-Deploy to Cloudflare 建立的新 repository 不會包含本專案的 `.github/workflows`，需要一次性安裝更新 workflow。
+此 fork 已安裝 `.github/workflows/sync-upstream.yml`；`deploy/github/sync-upstream.yml` 提供相同的唯讀範本。兩者只使用 `contents: read`，不保存 checkout credentials，不會呼叫舊的 `scripts/sync-upstream.mjs` 更新器。
 
-### 從 GitHub 網頁安裝
+每天台灣時間 **04:15**，或從 **Actions → Check Upstream Updates → Run workflow** 手動執行時，workflow 會取得上游 `main`，比較與 `integration` 的 commit 數量、待審查 commits 和 diff 統計，寫入 Actions summary。它不會 commit、push、merge 或 deploy。
 
-1. 在部署 repository 開啟 [`deploy/github/sync-upstream.yml`](../deploy/github/sync-upstream.yml)，點擊 **Raw** 並複製內容。
-2. 回到 repository 首頁，選擇 **Add file → Create new file**。
-3. 建立 `.github/workflows/sync-upstream.yml`，貼上內容並 commit 至 `main`。
-4. 前往 **Settings → Actions → General → Workflow permissions**，允許 GitHub Actions 寫入 repository。
+需要更新時，人工審查並整合至 `integration`，再以 PR 合併至 `main`。`main` 的保護規則要求 PR 與 GitHub Actions 的 `CI gate` 成功，approval 數為 0，禁止 force push 與刪除；分支須與 base 保持最新。
 
-### 從本機安裝
+`CI gate` 依序執行 format、typecheck、backend tests、frontend unit tests、build 與 Playwright Chromium E2E。CI 不執行部署。`main` 是預定的 Production branch；Cloudflare Workers Builds 的實際分支與部署設定需另外確認，repository 保護規則不會代為修改 Cloudflare。
 
-```bash
-mkdir -p .github/workflows
-cp deploy/github/sync-upstream.yml .github/workflows/sync-upstream.yml
-git add .github/workflows/sync-upstream.yml
-git commit -m "啟用版本自動更新"
-git push
-```
-
-完成後可從 **Actions → Sync Latest Version → Run workflow** 手動更新，也會在每天台灣時間 **04:15** 自動執行。
-
-### 更新如何運作
-
-workflow 會：
-
-1. 取得 `TedLin1993/all-set-tw` 的最新 `main`。
-2. 以前次同步版本為基準進行三方合併。
-3. 保留部署 repository 自己的 `.github/workflows`。
-4. 有新版本時推送至 `main`，由 Workers Builds 重新部署。
-
-首次同步若沒有共同 Git history，更新器只會在部署內容可對應到上游版本、且 workflows 以外沒有自行修改時接軌。同步前會建立 `backup-before-first-upstream-sync` branch；同名 branch 已存在時不會覆寫。
-
-後續同步會在 commit message 記錄上游基準，不使用 force push。若本地修改與上游衝突，更新器會在推送前停止，保留目前內容供手動處理。
-
-### 更新故障排查
-
-- **Workflow 沒有執行**：確認檔案位於 `.github/workflows/sync-upstream.yml`，並檢查 Actions 是否啟用。
-- **無法推送更新**：確認 Workflow permissions 允許寫入 repository。
-- **合併衝突**：從該次 Actions log 查看衝突檔案，手動合併後再重新執行。
-- **`fatal: refusing to merge unrelated histories`**：部署 repository 仍在使用舊版 workflow，請重新複製最新的 [`deploy/github/sync-upstream.yml`](../deploy/github/sync-upstream.yml)。
-- **Queue 權限錯誤**：替 Workers Builds API token 增加帳戶層級的 Queues Read 與 Queues Edit。
-
-更新流程會保留部署 repository 目前安裝的 workflow，因此上游若修正更新流程，仍需手動替換 workflow 檔案。
+若沒有執行紀錄，請檢查 Actions 是否啟用；若有上游差異，請人工審查，不要授予 workflow 寫入權限或重新啟用舊更新器。
 
 ## 本機開發
 
