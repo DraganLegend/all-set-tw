@@ -117,32 +117,11 @@ Cloudflare Access 可能預設使用 Email OTP，登入狀態通常會在 24 小
 
 更多 Queue、Access、自動更新原理與故障排查請參考[進階部署與更新](docs/005-deployment.md)。
 
-## 自動更新
+## 上游更新檢查
 
-Cloudflare 的 Deploy to Cloudflare 流程目前不會將 `.github/workflows` 複製到新 repository，因此首次部署可以正常使用，但需要完成下方的一次性設定才會啟用版本更新。
+此 fork 的 `.github/workflows/sync-upstream.yml` 僅比較 `integration` 與 `TedLin1993/all-set-tw` 的 `main`，不會自動 commit、push、merge 或 deploy。workflow 使用 `contents: read`，每天台灣時間 **04:15** 執行，也可從 **Actions → Check Upstream Updates → Run workflow** 手動檢查。
 
-### 一次性啟用更新功能
-
-不需要修改程式碼，可直接在 GitHub 網頁完成：
-
-1. 在你的部署 repository 開啟 [`deploy/github/sync-upstream.yml`](deploy/github/sync-upstream.yml)，點擊 **Raw** 並複製完整內容
-2. 回到 repository 首頁，選擇 **Add file → Create new file**
-3. 將檔名設為 `.github/workflows/sync-upstream.yml`，貼上剛才複製的內容並 commit 至 `main`
-4. 前往 **Settings → Actions → General → Workflow permissions**，確認已允許 GitHub Actions 讀寫 repository 內容
-
-若已將 repository clone 至本機，也可以執行：
-
-```bash
-mkdir -p .github/workflows
-cp deploy/github/sync-upstream.yml .github/workflows/sync-upstream.yml
-git add .github/workflows/sync-upstream.yml
-git commit -m "啟用版本自動更新"
-git push
-```
-
-完成一次性設定後，可以前往部署 repository 的 **Actions → Sync Latest Version → Run workflow**，點擊 **Run workflow** 立即更新。workflow 也會在每天台灣時間 **04:15** 自動執行。
-
-每次執行會取得最新版本、進行安全三方合併，並由 Cloudflare Workers Builds 重新部署。若你修改過程式碼並與上游發生衝突，workflow 會停止且不會推送；請從 Actions 紀錄查看衝突並手動處理。首次同步、備份 branch 與舊版 workflow 的排查方式請參考[進階部署與更新](docs/005-deployment.md)。
+請在 Actions summary 查看差異，將需要的上游變更人工整合至 `integration`，再開 PR 至 `main`。`main` 作為 Production branch，合併前須通過 `CI gate`；Cloudflare 的實際 Production branch 設定須另行確認。詳細流程請參考[進階部署與更新](docs/005-deployment.md)。
 
 ## 本機開發
 

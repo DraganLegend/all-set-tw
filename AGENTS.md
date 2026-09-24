@@ -58,7 +58,7 @@
 
 - 先跑 `npm run format:check`，再跑 `npm run typecheck`，然後跑此次變更適用的 `npm run test:backend` 或前端 unit tests。
 - **禁止**用 `prettier --check <touched files>` 代替 `npm run format:check`。只對改動檔跑 Prettier 通過，不算完成。
-- CI（`.github/workflows/ci.yml`）順序為 `format:check` → `typecheck` → `test:backend` → `test:unit` → `build`。在本地通過前三項中適用的檢查之前，不得視為 commit 完成。
+- CI（`.github/workflows/ci.yml`）順序為 `format:check` → `typecheck` → `test:backend` → `test:unit` → `build` → Playwright Chromium `test:e2e`。在本地通過前三項中適用的檢查之前，不得視為 commit 完成。
 
 ## 文件閱讀與維護
 
