@@ -80,7 +80,9 @@ Cloudflare Access 預設可能使用 Email OTP。如要限定 Cloudflare 帳號�
 
 `CI gate` 依序執行 format、typecheck、backend tests、frontend unit tests、build 與 Playwright Chromium E2E。CI 不執行部署。`main` 是預定的 Production branch；Cloudflare Workers Builds 的實際分支與部署設定需另外確認，repository 保護規則不會代為修改 Cloudflare。
 
-若沒有執行紀錄，請檢查 Actions 是否啟用；若有上游差異，請人工審查，不要授予 workflow 寫入權限或重新啟用舊更新器。
+若 fork 的 Actions 頁面顯示 **Workflows aren’t being run on this forked repository**，審查 workflows 後點選 **I understand my workflows, go ahead and enable them**，並確認唯讀的 **Check Upstream Updates** 也已啟用。只看 API 的 enabled／active 或手動執行成功，不足以確認 fork 的自動觸發已啟用。
+
+CI 支援 push、pull request 與手動觸發；需要手動驗證時，可執行 `gh workflow run ci.yml --ref integration`。提交後仍須確認 PR 收到 `CI gate` 結果。若有上游差異，請人工審查，不要授予 workflow 寫入權限或重新啟用舊更新器。
 
 ## 本機開發
 
